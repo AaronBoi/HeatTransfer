@@ -42,21 +42,21 @@ void CustomTraceLog(int msgType, const char *text, va_list args)
     printf("\n");
 }
 
-struct materialConstants {   //Material Constants
+struct MaterialConstants {   //Material Constants
     float thermalDiffusivity = 18.8 * pow(10, -6);      //In m^2/s
     float density = 7.87 * pow(10, 3);                 //In kg/m^3
     float specificHeatCapacity = 448;                   //In J/(kg*K)
     float thermalEmissivity = 0.3;
 };
 
-materialConstants Steel = { //Constants for Steel AlSI 1010
+MaterialConstants Steel = { //Constants for Steel AlSI 1010
     .thermalDiffusivity = 18.8 * pow(10, -6),
     .density = 7.87 * pow(10, 3),
     .specificHeatCapacity = 448,
     .thermalEmissivity = 0.3,
 };
 
-materialConstants material = Steel;
+MaterialConstants material = Steel;
 
 constexpr int screenWidth = 1200;
 constexpr int screenHeight = 900;
@@ -111,7 +111,7 @@ void setCylinderHollow() {
 
     float middle_y = numY / 2.0;
     float middle_z = numZ / 2.0;
-    float radius = numY / 2.0;
+    float radius = numY / 2.0 - 1; //So there is 1 layer air
 
     for (int x = 0; x < numX; x++) {
         
@@ -431,7 +431,20 @@ void heatConduction(float dt)
 //     }
 // }
 
+vector<float> ThomasAlgorithm()
+{
 
+}
+
+void heatConductionCrankNicolson(float dt, MaterialConstants material)
+{
+    float r1 = material.thermalDiffusivity * dt / cellSize;
+    float r2 = r1;
+    float r3 = r1;
+
+    
+    
+}
 
 
 void DrawCubes()
