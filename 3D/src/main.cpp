@@ -43,10 +43,10 @@ void CustomTraceLog(int msgType, const char *text, va_list args)
 }
 
 struct MaterialConstants {   //Material Constants
-    float thermalDiffusivity = 18.8 * pow(10, -6);      //In m^2/s
-    float density = 7.87 * pow(10, 3);                 //In kg/m^3
-    float specificHeatCapacity = 448;                   //In J/(kg*K)
-    float thermalEmissivity = 0.3;
+    float thermalDiffusivity;      //In m^2/s
+    float density;                 //In kg/m^3
+    float specificHeatCapacity;                   //In J/(kg*K)
+    float thermalEmissivity;
 };
 
 MaterialConstants Steel = { //Constants for Steel AlSI 1010
@@ -70,6 +70,7 @@ const float cylinderRadiusInside = 0.011 / 2; //in meters
 const float cylinderRadiusOutside = 0.014 / 2;
 const int numY = 12; //num of cells
 const int numX = float(numY) * cylinderLength / cylinderRadiusOutside / 2;
+//const int numX = 10;
 const int numZ = numY;
 float cellSize = cylinderLength / numX; //in meters
 float cellVolume = pow(cellSize, 3);
@@ -90,6 +91,7 @@ const float StefanBoltzmannConstant = 5.67*pow(10, -8); //in W/(m^2*K^4)
 
 float temperature[numX][numY][numZ];	//2D array for Temperatures
 float temp[numX][numY][numZ];          //Temporary storage
+
 float heatInlet[numX][numY][numZ];
 
 int isMaterial[numX][numY][numZ];      //Array to set which points are heat conductive material.
@@ -139,6 +141,17 @@ void setCylinderHollow() {
             }
         }
     }
+}
+
+void setPlane(){
+    for (int y = 1; y < numY - 1; y++) {
+        for (int z = 1; z < numZ - 1; z++) {
+            isMaterial[numX / 2][y][z] = 1;
+            isMaterial[numX / 2 - 1][y][z] = 1;
+            isMaterial[numX / 2 + 1][y][z] = 1;
+        }
+    }
+    
 }
 
 Color getGridColor(int x, int y, int z)
@@ -271,6 +284,7 @@ void init()
 
     memset(heatInlet, 0.0, sizeof(heatInlet));
 
+    //setPlane();
     setCylinderHollow();
 
     unsigned seed = chrono::system_clock::now().time_since_epoch().count();
@@ -320,7 +334,7 @@ bool findSurfaceCell(float angleDeg, int x, int &yOut, int &zOut)
     return false; // shouldn't happen if x is a valid cylinder cross-section
 }
 
-float setHeatInletWithRotation(float dt)
+float rotateAndApplyInlet(float dt)
 {
     int x = InletPositionX;
     int y, z;
@@ -333,6 +347,8 @@ float setHeatInletWithRotation(float dt)
     findSurfaceCell(InletPositionAngle, x, y, z);
     heatInlet[x][y][z] = heatPerSecond / (material.specificHeatCapacity * material.density * cellVolume);
     isMaterial[x][y][z] = 1.0;
+
+    temperature[x][y][z] += dt * heatInlet[x][y][z];
 
     return InletPositionAngle;
 }
@@ -397,7 +413,7 @@ void heatConduction(float dt)
                 
                 float laplaceU = 0.5 / pow(cellSize, 2) * (dudx_2 + dudy_2 + dudz_2);
 
-                float dudt = material.thermalDiffusivity * laplaceU + heatInlet[x][y][z];
+                float dudt = material.thermalDiffusivity * laplaceU;
 
                 temp[x][y][z] = temperature[x][y][z] + dt * (dudt + radiationTempChange);
             }
@@ -431,18 +447,185 @@ void heatConduction(float dt)
 //     }
 // }
 
-vector<float> ThomasAlgorithm()
-{
+vector<float> ThomasAlgorithm(vector<float> a, vector<float> b, vector<float> c, vector<float> d)
+{//Takes 4 Vectors with a, b, c representing the tridiagonal matrix and d the vector in the solution space.
+    //Returns vector with the solved components.
+    
+
+
+    //f is the vector that contains the components that are being solved.
+
+    int size = d.size();
+
+    vector<float> c_star(size);
+    vector<float> d_star(size);
+    vector<float> f(size);
+
+    c_star[0] = c[0] / b[0];
+    d_star[0] = d[0] / b[0];
+
+    for (int i = 1; i < size; i++)
+    {
+        float m = b[i] - c_star[i - 1] * a[i];
+        c_star[i] = c[i] / m;
+        d_star[i] = (d[i] - d_star[i - 1] * a[i]) / m;
+    }
+
+    int k = size - 1;
+    f[k] = d_star[k];
+
+    for (int i = k - 1; i >= 0; i--)
+    {
+        f[i] = d_star[i] - c_star[i] * f[i + 1];
+    }
+
+    return f;
 
 }
 
+
+
 void heatConductionCrankNicolson(float dt, MaterialConstants material)
 {
-    float r1 = material.thermalDiffusivity * dt / cellSize;
+
+    float T_s[numX][numY][numZ];            
+    float T_ss[numX][numY][numZ];           //Temp Matrizes for CrankNicolson Mathod
+
+    float r1 = material.thermalDiffusivity * dt / (cellSize * cellSize);
     float r2 = r1;
     float r3 = r1;
 
+    vector<float> a1(numX - 2, -r1 / 2);
+    vector<float> b1(numX - 2, 1 + r1);
+    vector<float> c1(numX - 2, -r1 / 2);
+
+    vector<float> a2(numY - 2, -r2 / 2);
+    vector<float> b2(numY - 2, 1 + r2);
+    vector<float> c2(numY - 2, -r2 / 2);
     
+    vector<float> a3(numZ - 2, -r3 / 2);
+    vector<float> b3(numZ - 2, 1 + r3);
+    vector<float> c3(numZ - 2, -r3 / 2);
+
+    //Neumann Boundary
+    b1[0] += a1[0];
+    b1[b1.size() - 1] += c1[0];
+
+    b2[0] += a2[0];
+    b2[b2.size() - 1] += c2[0];
+
+    b3[0] += a3[0];
+    b3[b3.size() - 1] += c3[0];
+
+    memcpy(temp, temperature, sizeof(temp));
+
+    //X Direction
+    for (int j = 1; j < numY - 1; j++) {
+        for (int k = 1; k < numZ - 1; k++) {
+            
+            vector<float> d(numX - 2);
+            for (int i = 1; i < numX - 1; i++) {
+                
+                float T_c   = temp[i][j][k];
+                float T_ip = (isMaterial[i + 1][j][k] == 0) ? T_c : temp[i + 1][j][k];
+                float T_im = (isMaterial[i - 1][j][k] == 0) ? T_c : temp[i - 1][j][k];
+                float T_jp = (isMaterial[i][j + 1][k] == 0) ? T_c : temp[i][j + 1][k];
+                float T_jm = (isMaterial[i][j - 1][k] == 0) ? T_c : temp[i][j - 1][k];
+                float T_kp = (isMaterial[i][j][k + 1] == 0) ? T_c : temp[i][j][k + 1];
+                float T_km = (isMaterial[i][j][k - 1] == 0) ? T_c : temp[i][j][k - 1];
+
+                d[i - 1] = r1 / 2.0 * (T_im + T_ip) 
+                + r2 * (T_jm + T_jp) + r3 * (T_km + T_kp) 
+                + (1 - r1 - 2*r2 - 2*r3) * T_c;            
+            }
+
+            //Neumann Boundary
+
+            vector<float> f = ThomasAlgorithm(a1, b1, c1, d); 
+
+            for (int i = 1; i < numX - 1; i++)
+            {
+                T_s[i][j][k] = f[i - 1];
+            }
+        }
+    }
+
+    // after the X-sweep's i,j,k loops finish, before starting the Y sweep:
+    for (int j = 1; j < numY - 1; j++) {
+        for (int k = 1; k < numZ - 1; k++) {
+            T_s[0][j][k]        = T_s[1][j][k];
+            T_s[numX - 1][j][k] = T_s[numX - 2][j][k];
+        }
+    }
+
+    //Y Direction
+    memcpy(temp, temperature, sizeof(temp));
+    for (int i = 1; i < numX - 1; i++) {
+        for (int k = 1; k < numZ - 1; k++) {
+            vector<float> d(numY - 2);
+
+            for (int j = 1; j < numY - 1; j++) {
+                float T_c   = temp[i][j][k];
+                float T_ip = (isMaterial[i + 1][j][k] == 0) ? T_c : temp[i + 1][j][k];
+                float T_im = (isMaterial[i - 1][j][k] == 0) ? T_c : temp[i - 1][j][k];
+                float T_jp = (isMaterial[i][j + 1][k] == 0) ? T_c : temp[i][j + 1][k];
+                float T_jm = (isMaterial[i][j - 1][k] == 0) ? T_c : temp[i][j - 1][k];
+                float T_kp = (isMaterial[i][j][k + 1] == 0) ? T_c : temp[i][j][k + 1];
+                float T_km = (isMaterial[i][j][k - 1] == 0) ? T_c : temp[i][j][k - 1];
+
+                d[j - 1] = r1 / 2.0 * (T_im + T_ip + T_s[i-1][j][k] + T_s[i+1][j][k])
+                + r2 / 2.0 * (T_jm + T_jp) 
+                + r3 * (T_km + T_kp) 
+                + (1 - r1 - r2 - 2*r3) * T_c - r1 * T_s[i][j][k];
+            }
+
+            vector<float> f = ThomasAlgorithm(a2, b2, c2, d); 
+
+            for (int j = 1; j < numY - 1; j++)
+            {
+                T_ss[i][j][k] = f[j - 1];
+            }
+        }
+    }
+
+    // after the Y-sweep's i,j,k loops finish, before starting the Z sweep:
+    for (int i = 1; i < numX - 1; i++) {
+        for (int k = 1; k < numZ - 1; k++) {
+            T_ss[i][0][k]        = T_ss[i][1][k];
+            T_ss[i][numY - 1][k] = T_ss[i][numY - 2][k];
+        }
+    }
+    
+    //Z Direction
+    memcpy(temp, temperature, sizeof(temp));
+    
+    for (int i = 1; i < numX - 1; i++) {
+        for (int j = 1; j < numY - 1; j++) {
+        vector<float> d(numZ - 2);
+        
+            for (int k = 1; k < numZ - 1; k++) {
+                float T_c   = temp[i][j][k];
+                float T_ip = (isMaterial[i + 1][j][k] == 0) ? T_c : temp[i + 1][j][k];
+                float T_im = (isMaterial[i - 1][j][k] == 0) ? T_c : temp[i - 1][j][k];
+                float T_jp = (isMaterial[i][j + 1][k] == 0) ? T_c : temp[i][j + 1][k];
+                float T_jm = (isMaterial[i][j - 1][k] == 0) ? T_c : temp[i][j - 1][k];
+                float T_kp = (isMaterial[i][j][k + 1] == 0) ? T_c : temp[i][j][k + 1];
+                float T_km = (isMaterial[i][j][k - 1] == 0) ? T_c : temp[i][j][k - 1]; 
+
+                d[k - 1] = r1 / 2.0 * (T_im + T_ip + T_s[i-1][j][k] + T_s[i+1][j][k])
+                + r2 / 2.0 * (T_jm + T_jp + T_ss[i][j - 1][k] + T_ss[i][j + 1][k]) 
+                + r3 / 2.0 * (T_km + T_kp) 
+                + (1 - r1 - r2 - r3) *T_c - r1 * T_s[i][j][k] - r2 * T_ss[i][j][k];
+            }
+
+            vector<float> f = ThomasAlgorithm(a3, b3, c3, d); 
+
+            for (int k = 1; k < numZ - 1; k++)
+            {
+                temperature[i][j][k] = f[k - 1];
+            }
+        }
+    }
     
 }
 
@@ -540,7 +723,8 @@ int main()
     init();
     
     int i = 0;
-    float speedUp = 100.0 / float(numX);
+    //float speedUp = 100.0 / float(numX);
+    float speedUp = 10;
     float simdt = dt * speedUp;
     int numIter = 1;
     float subdt = dt / float(numIter);
@@ -548,6 +732,13 @@ int main()
     int numCubes = getNumberCubes();
 
     int cubePositions[3 * numCubes] = {};
+
+    // vector<float> a = {0, -1, -1, -1, -1};   
+    // vector<float> b = {2,  2,  2,  2,  2};  
+    // vector<float> c = {-1,-1, -1, -1,  0}; 
+    // vector<float> d = {1,  0,  0,  0,  1};
+
+    // ThomasAlgorithm(a, b, c, d);
 
     int index = 0;
     for (int x = 0; x < numX; x++) {
@@ -596,7 +787,7 @@ int main()
         
         if (rotationSpeed > 0.2)
         {
-            //heatPerSecond = heatPerDistance / (rotationSpeed * cylinderRadiusOutside ) ;  //  J/s
+            heatPerSecond = heatPerDistance / (rotationSpeed * cylinderRadiusOutside ) ;  //  J/s
         }
         
         
@@ -604,8 +795,10 @@ int main()
         for (int x = 0; x < numIter; x++) {
             if (!running) break;
             
-            setHeatInletWithRotation(simdt);
-            heatConduction(simdt);
+            rotateAndApplyInlet(simdt);
+            //heatConduction(simdt);
+            heatConductionCrankNicolson(simdt, material);
+
             //radiationDissipation(simdt);
             timePassed += simdt;    
             
