@@ -1,0 +1,6 @@
+numY: 20
+Pipe length: 50.000000
+Pipe outer diameter: 14.000000
+Pipe wall thickness: 2.000000
+Heat Per Distance: 0.150000
+SensorPositionIndex: -1

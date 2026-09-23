@@ -6,3 +6,4 @@
 // a, b, c are the sub-, main-, and super-diagonals of the equation matrix.
 // Returns the solved vector x.
 std::vector<float> ThomasAlgorithm(std::vector<float> a, std::vector<float> b, std::vector<float> c, std::vector<float> d);
+std::vector<float> ThomasAlgorithmOptimized(std::vector<float> a, std::vector<float> b, std::vector<float> c, std::vector<float> d, std::vector<float> c_star);

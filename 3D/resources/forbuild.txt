@@ -1,1 +1,5 @@
-hehe
+For Webassembly, all in the same cmd Terminal:
+run
+C:\raylib\emsdk>emsdk_env.bat
+C:\raylib\raylib-6.0\src>make PLATFORM=PLATFORM_WEB
+run make PLATFORM=PLATFORM_WEB in the project directory

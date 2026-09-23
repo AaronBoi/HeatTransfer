@@ -8,4 +8,7 @@ bool showAsKelvin = true;
 bool activateMouse = false;
 float timePassed = 0.0f;
 float rotationSpeed = 0.0f;
-float heatPerDistancekJcm = 0.15f;   
+bool selectMode = false;
+int stopTime = 0;
+
+ConfigState guiState;

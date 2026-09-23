@@ -3,8 +3,8 @@
 #include <rlgl.h>
 #include <chrono>
 #include <vector>
+#include <raymath.h>
 
-#include "grid_config.h"
 #include "grid_state.h"
 #include "app_state.h"
 
@@ -13,8 +13,10 @@ using namespace std::chrono;
 
 Color getGridColor(int x, int y, int z)
 {
-    float displayTemp = showAsKelvin ? temperature[x][y][z] : temperature[x][y][z] - 273.15f;
-    return ColorFromHSV(displayTemp / float(maxDrawTemp) * 360, 1, 1);
+    float displayTemp = showAsKelvin ? temperature[idx(x, y, z)] : temperature[idx(x, y, z)] - 273.15f;
+    displayTemp -= roomTemperature;
+    displayTemp = (displayTemp <= 0) ? 0.1 : displayTemp; 
+    return ColorFromHSV(log10(displayTemp) * 360.0f / 6.0f, 1, 1);
 }
 
 int getNumberCubes()
@@ -23,8 +25,8 @@ int getNumberCubes()
     for (int x = 0; x < numX; x++) {
         for (int y = 0; y < numY; y++) {
             for (int z = 0; z < numZ; z++) {
-                if (isMaterial[x][y][z] != 0 && isMaterial[x][y][z] != 1) continue;
-                num += isMaterial[x][y][z];
+                if (isMaterial[idx(x, y, z)] != 0 && isMaterial[idx(x, y, z)] != 1) continue;
+                num += isMaterial[idx(x, y, z)];
             }
         }
     }
@@ -43,7 +45,7 @@ Mesh GenMeshIdenticalCubes(float sideLength)
     for (int x = 0; x < numX; x++) {
         for (int y = 0; y < numY; y++) {
             for (int z = 0; z < numZ; z++) {
-                if (isMaterial[x][y][z] == 1)
+                if (isMaterial[idx(x, y, z)] == 1)
                 {
                     cubePositions[3 * index] = x;
                     cubePositions[3 * index + 1] = y;
@@ -93,7 +95,7 @@ Mesh GenMeshIdenticalCubes(float sideLength)
     }
 
     UnloadMesh(singleMesh);
-    UploadMesh(&mesh, false);
+    UploadMesh(&mesh, true);
     return mesh;
 }
 
@@ -106,12 +108,19 @@ void SetAllCubeColors(Mesh &mesh, int numCubes, int vertsPerCube)
     for (int x = 0; x < numX; x++) {
         for (int y = 0; y < numY; y++) {
             for (int z = 0; z < numZ; z++) {
-                if (isMaterial[x][y][z] == 0) continue;
+                if (isMaterial[idx(x, y, z)] == 0) continue;
 
                 int vOffset = i * vertsPerCube;
                 Color c = getGridColor(x, y, z);
 
-                if (heatInlet[x][y][z] != 0)
+                if (idx(x, y, z) == guiState.selectedSensor)
+                {
+
+                    c = GRAY;
+                }
+                
+
+                if (heatInlet[idx(x, y, z)] != 0)
                 {
                     c = ColorFromHSV(0, 0, 0);
                 }
@@ -131,23 +140,7 @@ void SetAllCubeColors(Mesh &mesh, int numCubes, int vertsPerCube)
 
     UpdateMeshBuffer(mesh, 3, mesh.colors, 4 * mesh.vertexCount * sizeof(unsigned char), 0);
 
+
     auto stop = high_resolution_clock::now();
     timings[1] = duration_cast<microseconds>(stop - start).count();
-}
-
-void DrawCubes()
-{
-    for (int x = 0; x < numX; x++) {
-        for (int y = 0; y < numY; y++) {
-            for (int z = 0; z < numZ; z++) {
-                if (isMaterial[x][y][z] == 0) continue;
-
-                float displayTemp = showAsKelvin ? temperature[x][y][z] : temperature[x][y][z] - 273.15f;
-                Color color = ColorFromHSV(displayTemp / float(maxDrawTemp) * 360, 1, 1);
-
-                // DrawCube({drawSize * x, drawSize * y, drawSize * z}, drawSize, drawSize, drawSize, color);
-                // DrawCubeWires({drawSize * x, drawSize * y, drawSize * z}, drawSize, drawSize, drawSize, BLACK);
-            }
-        }
-    }
 }

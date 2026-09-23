@@ -5,19 +5,11 @@
 #include <cmath>
 #include <algorithm>
 
-#include "grid_config.h"
 #include "grid_state.h"
 #include "app_state.h"
 
-float InletPositionAngle = 0.0f;   // On which angle the inlet is currently on the pipe
-float InletPositionX = numX / 2;   // Where on the X axis the inlet is
-
-float heatPerDistance = heatPerDistancekJcm * 1000 * 100;   // J/m
-float heatPerSecond = 100;
-
-bool findSurfaceCell(float angleDeg, int x, int &yOut, int &zOut)
+bool findSurfaceCell(float angleRad, int x, int &yOut, int &zOut)
 {
-    float angleRad = angleDeg * DEG2RAD;
     float middle_y = numY / 2.0f;
     float middle_z = numZ / 2.0f;
     float outerRadius = numY / 2.0f;
@@ -31,7 +23,7 @@ bool findSurfaceCell(float angleDeg, int x, int &yOut, int &zOut)
         y = std::max(0, std::min(numY - 1, y));
         z = std::max(0, std::min(numZ - 1, z));
 
-        if (isMaterial[x][y][z] == 1)
+        if (isMaterial[idx(x, y, z)] == 1)
         {
             yOut = y;
             zOut = z;
@@ -47,21 +39,21 @@ float rotateAndApplyInlet(float dt)
     int y, z;
 
     findSurfaceCell(InletPositionAngle, x, y, z);
-    heatInlet[x][y][z] = 0;
+    heatInlet[idx(x, y, z)] = 0;
 
-    InletPositionAngle += rotationSpeed * dt;
+    InletPositionAngle += rotationSpeedcms / (100.0f * cylinderRadiusOutside) * dt;
 
     findSurfaceCell(InletPositionAngle, x, y, z);
 
-    if (rotationSpeed > 0.01)
+    if (rotationSpeedcms > 0.01)
     {
-        heatPerSecond = heatPerDistance / (rotationSpeed * cylinderRadiusOutside); // J/s
+        heatPerSecond = heatPerDistance / (rotationSpeedcms); // J/s
     }
     
-    heatInlet[x][y][z] = heatPerSecond / (material.specificHeatCapacity * material.density * cellVolume);
-    isMaterial[x][y][z] = 1.0;
+    heatInlet[idx(x, y, z)] = heatPerSecond / (material.specificHeatCapacity * material.density * cellVolume);
+    isMaterial[idx(x, y, z)] = 1.0;
 
-    temperature[x][y][z] += dt * heatInlet[x][y][z];
+    temperature[idx(x, y, z)] += dt * heatInlet[idx(x, y, z)];
 
     return InletPositionAngle;
 }

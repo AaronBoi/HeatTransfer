@@ -44,6 +44,37 @@
             ]
         },
         {
+            "label": "build web",
+            "type": "shell",
+            "windows": {
+                "command": "${workspaceFolder}/build_web.bat",
+            },
+            "osx": {
+                "args": [
+                    "PROJECT_NAME=main",
+                    "OBJS=src/*.cpp",
+                    "BUILD_MODE=DEBUG"
+                ]
+            },
+            "linux": {
+                "args": [
+                    "PROJECT_NAME=${fileBasenameNoExtension}",
+                    "DESTDIR=/home/linuxbrew/.linuxbrew",
+                    "RAYLIB_LIBTYPE=SHARED",
+                    "EXAMPLE_RUNTIME_PATH=/home/linuxbrew/.linuxbrew/lib",
+                    "OBJS=src/*.cpp",
+                    "BUILD_MODE=DEBUG"
+                ]
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
             "label": "build release",
             "type": "process",
             "command": "make",
