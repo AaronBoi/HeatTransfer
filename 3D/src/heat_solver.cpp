@@ -5,7 +5,6 @@
 #include <cstring>
 #include <vector>
 
-#include "grid_state.h"
 #include "thomas_algorithm.h"
 
 using namespace std;
@@ -23,7 +22,7 @@ using namespace std::chrono;
 //         for (int y = 0; y < numY; y++) {
 //             for (int z = 0; z < numZ; z++) {
 
-//                 if (isMaterial[idx(x, y, z)] == 0) continue;
+//                 if (isMaterial[scene.idx(x, y, z)] == 0) continue;
 
 //                 x_p = x + 1;
 //                 x_n = x - 1;
@@ -44,12 +43,12 @@ using namespace std::chrono;
 //                 // So only account for radiation loss when surface is next to air.
                 
 //                 float var = 0;
-//                 if (isMaterial[x_p][y][z] == 0) var += pow(temperature[x_p][y][z], 4) - pow(temperature[idx(x, y, z)], 4);
-//                 if (isMaterial[x_n][y][z] == 0) var += pow(temperature[x_n][y][z], 4) - pow(temperature[idx(x, y, z)], 4);
-//                 if (isMaterial[x][y_p][z] == 0) var += pow(temperature[x][y_p][z], 4) - pow(temperature[idx(x, y, z)], 4);
-//                 if (isMaterial[x][y_n][z] == 0) var += pow(temperature[x][y_n][z], 4) - pow(temperature[idx(x, y, z)], 4);
-//                 if (isMaterial[x][y][z_p] == 0) var += pow(temperature[x][y][z_p], 4) - pow(temperature[idx(x, y, z)], 4);
-//                 if (isMaterial[x][y][z_n] == 0) var += pow(temperature[x][y][z_n], 4) - pow(temperature[idx(x, y, z)], 4);
+//                 if (isMaterial[x_p][y][z] == 0) var += pow(temperature[x_p][y][z], 4) - pow(temperature[scene.idx(x, y, z)], 4);
+//                 if (isMaterial[x_n][y][z] == 0) var += pow(temperature[x_n][y][z], 4) - pow(temperature[scene.idx(x, y, z)], 4);
+//                 if (isMaterial[x][y_p][z] == 0) var += pow(temperature[x][y_p][z], 4) - pow(temperature[scene.idx(x, y, z)], 4);
+//                 if (isMaterial[x][y_n][z] == 0) var += pow(temperature[x][y_n][z], 4) - pow(temperature[scene.idx(x, y, z)], 4);
+//                 if (isMaterial[x][y][z_p] == 0) var += pow(temperature[x][y][z_p], 4) - pow(temperature[scene.idx(x, y, z)], 4);
+//                 if (isMaterial[x][y][z_n] == 0) var += pow(temperature[x][y][z_n], 4) - pow(temperature[scene.idx(x, y, z)], 4);
 
 //                 float radiationHeat = material.thermalEmissivity * faceSurface * StefanBoltzmannConstant * var;
 //                 float radiationTempChange = radiationHeat / (material.specificHeatCapacity * mass);
@@ -62,15 +61,15 @@ using namespace std::chrono;
 //                 if (isMaterial[x][y][z_n] == 0) z_n = z;
 
 //                 // Normal heat conduction with central differential quotient.
-//                 float dudx_2 = temperature[x_p][y][z] - 2 * temperature[idx(x, y, z)] + temperature[x_n][y][z];
-//                 float dudy_2 = temperature[x][y_p][z] - 2 * temperature[idx(x, y, z)] + temperature[x][y_n][z];
-//                 float dudz_2 = temperature[x][y][z_p] - 2 * temperature[idx(x, y, z)] + temperature[x][y][z_n];
+//                 float dudx_2 = temperature[x_p][y][z] - 2 * temperature[scene.idx(x, y, z)] + temperature[x_n][y][z];
+//                 float dudy_2 = temperature[x][y_p][z] - 2 * temperature[scene.idx(x, y, z)] + temperature[x][y_n][z];
+//                 float dudz_2 = temperature[x][y][z_p] - 2 * temperature[scene.idx(x, y, z)] + temperature[x][y][z_n];
 
 //                 float laplaceU = 0.5 / pow(cellSize, 2) * (dudx_2 + dudy_2 + dudz_2);
 
 //                 float dusimdt = material.thermalDiffusivity * laplaceU;
 
-//                 temp[idx(x, y, z)] = temperature[idx(x, y, z)] + simdt * (dusimdt + radiationTempChange);
+//                 temp[scene.idx(x, y, z)] = temperature[scene.idx(x, y, z)] + simdt * (dusimdt + radiationTempChange);
 //             }
 //         }
 //     }
@@ -80,19 +79,28 @@ using namespace std::chrono;
 //     timings[0] = duration_cast<microseconds>(stop - start).count();
 // }
 
-void radiationLoss(float simdt)
+void radiationLoss(Scene& scene, float simdt)
 {
     auto start = high_resolution_clock::now();
 
-    float faceSurface = pow(cellSize, 2);
-    float mass = pow(cellSize, 3) * material.density / 10;    // Division Factor because 
+    auto& temp = scene.state.temp;
+    auto& temperature = scene.state.temperature;
+    auto& isMaterial = scene.state.isMaterial;
+
+
+    int numX = scene.state.numX;
+    int numY = scene.state.numY;
+    int numZ = scene.state.numZ;
+
+    float faceSurface = pow(scene.state.cellSize, 2);
+    float mass = pow(scene.state.cellSize, 3) * material.density;
     float thermalMass = material.specificHeatCapacity * mass; // J/K
 
     for (int x = 0; x < numX; x++) {
         for (int y = 0; y < numY; y++) {
             for (int z = 0; z < numZ; z++) {
 
-                if (isMaterial[idx(x, y, z)] == 0) continue;
+                if (isMaterial[scene.idx(x, y, z)] == 0) continue;
 
                 int x_p = x + 1, x_n = x - 1;
                 int y_p = y + 1, y_n = y - 1;
@@ -105,7 +113,7 @@ void radiationLoss(float simdt)
                 if (z_p >= numZ) z_p = z;
                 if (z_n < 0)     z_n = z;
 
-                float T_self = temperature[idx(x, y, z)];
+                float T_self = temperature[scene.idx(x, y, z)];
 
                 // Linearize q = eps*sigma*(T^4 - T_amb^4) as q = h*(T_self - T_amb),
                 // with h evaluated at the start-of-step temperature. This turns a very
@@ -115,9 +123,9 @@ void radiationLoss(float simdt)
                 float G_Tamb_sum = 0.0f; // sum of (conductance * ambient temp), W
 
                 auto accumulate = [&](int nx, int ny, int nz) {
-                    if (isMaterial[idx(nx, ny, nz)] != 0) return;
-                    float T_amb = temperature[idx(nx, ny, nz)];
-                    float h = material.thermalEmissivity * StefanBoltzmannConstant
+                    if (isMaterial[scene.idx(nx, ny, nz)] != 0) return;
+                    float T_amb = temperature[scene.idx(nx, ny, nz)];
+                    float h = material.thermalEmissivity * scene.StefanBoltzmannConstant
                               * (T_self * T_self + T_amb * T_amb) * (T_self + T_amb);
                     float g = h * faceSurface;
                     G += g;
@@ -132,7 +140,7 @@ void radiationLoss(float simdt)
                 accumulate(x, y, z_n);
 
                 // Implicit solve of: thermalMass*(T_new - T_self)/simdt = G*(T_amb_avg - T_new)
-                temp[idx(x, y, z)] = (thermalMass * T_self + simdt * G_Tamb_sum) / (thermalMass + simdt * G);
+                temp[scene.idx(x, y, z)] = (thermalMass * T_self + simdt * G_Tamb_sum) / (thermalMass + simdt * G);
             }
         }
     }
@@ -143,17 +151,26 @@ void radiationLoss(float simdt)
     timings[2] = duration_cast<microseconds>(stop - start).count();
 }
 
-void heatConductionCrankNicolson(float simdt, MaterialConstants material)
+void heatConductionCrankNicolson(Scene& scene, float simdt, MaterialConstants material)
 {
+
+    int numX = scene.state.numX;
+    int numY = scene.state.numY;
+    int numZ = scene.state.numZ;
+
+    auto& temp = scene.state.temp;
+    auto& temperature = scene.state.temperature;
+    auto& isMaterial = scene.state.isMaterial;
+   
+    
+
 
     auto start = high_resolution_clock::now();
 
     vector<float> T_s(numX * numY * numZ);
     vector<float> T_ss(numX * numY * numZ); // temp matrices for the Crank-Nicolson ADI sweeps
 
-    auto idx = [](int x, int y, int z) { return (x * numY + y) * numZ + z; };
-
-    float r1 = material.thermalDiffusivity * simdt / (cellSize * cellSize);
+    float r1 = material.thermalDiffusivity * simdt / (pow(scene.state.cellSize, 2));
     float r2 = r1;
     float r3 = r1;
 
@@ -192,8 +209,6 @@ void heatConductionCrankNicolson(float simdt, MaterialConstants material)
 
     // X direction
 
-    
-
     vector<float> d(numX - 2);
     vector<float> f;
     vector<float> c_star(numX - 2);
@@ -209,13 +224,13 @@ void heatConductionCrankNicolson(float simdt, MaterialConstants material)
 
             for (int i = 1; i < numX - 1; i++) {
 
-                T_c  = temp[idx(i, j, k)];
-                T_ip = (isMaterial[idx(i + 1, j, k)] == 0) ? T_c : temp[idx(i + 1, j, k)];
-                T_im = (isMaterial[idx(i - 1, j, k)] == 0) ? T_c : temp[idx(i - 1, j, k)];
-                T_jp = (isMaterial[idx(i, j + 1, k)] == 0) ? T_c : temp[idx(i, j + 1, k)];
-                T_jm = (isMaterial[idx(i, j - 1, k)] == 0) ? T_c : temp[idx(i, j - 1, k)];
-                T_kp = (isMaterial[idx(i, j, k + 1)] == 0) ? T_c : temp[idx(i, j, k + 1)];
-                T_km = (isMaterial[idx(i, j, k - 1)] == 0) ? T_c : temp[idx(i, j, k - 1)];
+                T_c  = temp[scene.idx(i, j, k)];
+                T_ip = (isMaterial[scene.idx(i + 1, j, k)] == 0) ? T_c : temp[scene.idx(i + 1, j, k)];
+                T_im = (isMaterial[scene.idx(i - 1, j, k)] == 0) ? T_c : temp[scene.idx(i - 1, j, k)];
+                T_jp = (isMaterial[scene.idx(i, j + 1, k)] == 0) ? T_c : temp[scene.idx(i, j + 1, k)];
+                T_jm = (isMaterial[scene.idx(i, j - 1, k)] == 0) ? T_c : temp[scene.idx(i, j - 1, k)];
+                T_kp = (isMaterial[scene.idx(i, j, k + 1)] == 0) ? T_c : temp[scene.idx(i, j, k + 1)];
+                T_km = (isMaterial[scene.idx(i, j, k - 1)] == 0) ? T_c : temp[scene.idx(i, j, k - 1)];
 
                 d[i - 1] = r1 / 2.0 * (T_im + T_ip)
                          + r2 * (T_jm + T_jp) + r3 * (T_km + T_kp)
@@ -227,7 +242,7 @@ void heatConductionCrankNicolson(float simdt, MaterialConstants material)
 
             for (int i = 1; i < numX - 1; i++)
             {
-                T_s[idx(i, j, k)] = f[i - 1];
+                T_s[scene.idx(i, j, k)] = f[i - 1];
             }
         }
     }
@@ -237,8 +252,8 @@ void heatConductionCrankNicolson(float simdt, MaterialConstants material)
     // physically sensible "no flux crossed this boundary" value there.
     for (int j = 1; j < numY - 1; j++) {
         for (int k = 1; k < numZ - 1; k++) {
-            T_s[idx(0, j, k)]        = T_s[idx(1, j, k)];
-            T_s[idx(numX - 1, j, k)] = T_s[idx(numX - 2, j, k)];
+            T_s[scene.idx(0, j, k)]        = T_s[scene.idx(1, j, k)];
+            T_s[scene.idx(numX - 1, j, k)] = T_s[scene.idx(numX - 2, j, k)];
         }
     }
 
@@ -258,18 +273,18 @@ void heatConductionCrankNicolson(float simdt, MaterialConstants material)
     for (int i = 1; i < numX - 1; i++) {
         for (int k = 1; k < numZ - 1; k++) {
             for (int j = 1; j < numY - 1; j++) {
-                T_c  = temp[idx(i, j, k)];
-                T_ip = (isMaterial[idx(i + 1, j, k)] == 0) ? T_c : temp[idx(i + 1, j, k)];
-                T_im = (isMaterial[idx(i - 1, j, k)] == 0) ? T_c : temp[idx(i - 1, j, k)];
-                T_jp = (isMaterial[idx(i, j + 1, k)] == 0) ? T_c : temp[idx(i, j + 1, k)];
-                T_jm = (isMaterial[idx(i, j - 1, k)] == 0) ? T_c : temp[idx(i, j - 1, k)];
-                T_kp = (isMaterial[idx(i, j, k + 1)] == 0) ? T_c : temp[idx(i, j, k + 1)];
-                T_km = (isMaterial[idx(i, j, k - 1)] == 0) ? T_c : temp[idx(i, j, k - 1)];
+                T_c  = temp[scene.idx(i, j, k)];
+                T_ip = (isMaterial[scene.idx(i + 1, j, k)] == 0) ? T_c : temp[scene.idx(i + 1, j, k)];
+                T_im = (isMaterial[scene.idx(i - 1, j, k)] == 0) ? T_c : temp[scene.idx(i - 1, j, k)];
+                T_jp = (isMaterial[scene.idx(i, j + 1, k)] == 0) ? T_c : temp[scene.idx(i, j + 1, k)];
+                T_jm = (isMaterial[scene.idx(i, j - 1, k)] == 0) ? T_c : temp[scene.idx(i, j - 1, k)];
+                T_kp = (isMaterial[scene.idx(i, j, k + 1)] == 0) ? T_c : temp[scene.idx(i, j, k + 1)];
+                T_km = (isMaterial[scene.idx(i, j, k - 1)] == 0) ? T_c : temp[scene.idx(i, j, k - 1)];
 
-                d[j - 1] = r1 / 2.0 * (T_im + T_ip + T_s[idx(i - 1, j, k)] + T_s[idx(i + 1, j, k)])
+                d[j - 1] = r1 / 2.0 * (T_im + T_ip + T_s[scene.idx(i - 1, j, k)] + T_s[scene.idx(i + 1, j, k)])
                          + r2 / 2.0 * (T_jm + T_jp)
                          + r3 * (T_km + T_kp)
-                         + (1 - r1 - r2 - 2 * r3) * T_c - r1 * T_s[idx(i, j, k)];
+                         + (1 - r1 - r2 - 2 * r3) * T_c - r1 * T_s[scene.idx(i, j, k)];
             }
 
             f = ThomasAlgorithm(a2, b2, c2, d);
@@ -277,7 +292,7 @@ void heatConductionCrankNicolson(float simdt, MaterialConstants material)
 
             for (int j = 1; j < numY - 1; j++)
             {
-                T_ss[idx(i, j, k)] = f[j - 1];
+                T_ss[scene.idx(i, j, k)] = f[j - 1];
             }
         }
     }
@@ -285,8 +300,8 @@ void heatConductionCrankNicolson(float simdt, MaterialConstants material)
     // Same gap as T_s above, this time for T_ss at j = 0 / numY-1.
     for (int i = 1; i < numX - 1; i++) {
         for (int k = 1; k < numZ - 1; k++) {
-            T_ss[idx(i, 0, k)]        = T_ss[idx(i, 1, k)];
-            T_ss[idx(i, numY - 1, k)] = T_ss[idx(i, numY - 2, k)];
+            T_ss[scene.idx(i, 0, k)]        = T_ss[scene.idx(i, 1, k)];
+            T_ss[scene.idx(i, numY - 1, k)] = T_ss[scene.idx(i, numY - 2, k)];
         }
     }
 
@@ -306,18 +321,18 @@ void heatConductionCrankNicolson(float simdt, MaterialConstants material)
     for (int i = 1; i < numX - 1; i++) {
         for (int j = 1; j < numY - 1; j++) {
             for (int k = 1; k < numZ - 1; k++) {
-                T_c  = temp[idx(i, j, k)];
-                T_ip = (isMaterial[idx(i + 1, j, k)] == 0) ? T_c : temp[idx(i + 1, j, k)];
-                T_im = (isMaterial[idx(i - 1, j, k)] == 0) ? T_c : temp[idx(i - 1, j, k)];
-                T_jp = (isMaterial[idx(i, j + 1, k)] == 0) ? T_c : temp[idx(i, j + 1, k)];
-                T_jm = (isMaterial[idx(i, j - 1, k)] == 0) ? T_c : temp[idx(i, j - 1, k)];
-                T_kp = (isMaterial[idx(i, j, k + 1)] == 0) ? T_c : temp[idx(i, j, k + 1)];
-                T_km = (isMaterial[idx(i, j, k - 1)] == 0) ? T_c : temp[idx(i, j, k - 1)];
+                T_c  = temp[scene.idx(i, j, k)];
+                T_ip = (isMaterial[scene.idx(i + 1, j, k)] == 0) ? T_c : temp[scene.idx(i + 1, j, k)];
+                T_im = (isMaterial[scene.idx(i - 1, j, k)] == 0) ? T_c : temp[scene.idx(i - 1, j, k)];
+                T_jp = (isMaterial[scene.idx(i, j + 1, k)] == 0) ? T_c : temp[scene.idx(i, j + 1, k)];
+                T_jm = (isMaterial[scene.idx(i, j - 1, k)] == 0) ? T_c : temp[scene.idx(i, j - 1, k)];
+                T_kp = (isMaterial[scene.idx(i, j, k + 1)] == 0) ? T_c : temp[scene.idx(i, j, k + 1)];
+                T_km = (isMaterial[scene.idx(i, j, k - 1)] == 0) ? T_c : temp[scene.idx(i, j, k - 1)];
 
-                d[k - 1] = r1 / 2.0 * (T_im + T_ip + T_s[idx(i - 1, j, k)] + T_s[idx(i + 1, j, k)])
-                         + r2 / 2.0 * (T_jm + T_jp + T_ss[idx(i, j - 1, k)] + T_ss[idx(i, j + 1, k)])
+                d[k - 1] = r1 / 2.0 * (T_im + T_ip + T_s[scene.idx(i - 1, j, k)] + T_s[scene.idx(i + 1, j, k)])
+                         + r2 / 2.0 * (T_jm + T_jp + T_ss[scene.idx(i, j - 1, k)] + T_ss[scene.idx(i, j + 1, k)])
                          + r3 / 2.0 * (T_km + T_kp)
-                         + (1 - r1 - r2 - r3) * T_c - r1 * T_s[idx(i, j, k)] - r2 * T_ss[idx(i, j, k)];
+                         + (1 - r1 - r2 - r3) * T_c - r1 * T_s[scene.idx(i, j, k)] - r2 * T_ss[scene.idx(i, j, k)];
             }
 
             f = ThomasAlgorithm(a3, b3, c3, d);
@@ -325,7 +340,7 @@ void heatConductionCrankNicolson(float simdt, MaterialConstants material)
 
             for (int k = 1; k < numZ - 1; k++)
             {
-                temperature[idx(i, j, k)] = f[k - 1];
+                temperature[scene.idx(i, j, k)] = f[k - 1];
             }
         }
     }

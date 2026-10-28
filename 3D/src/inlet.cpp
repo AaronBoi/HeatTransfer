@@ -5,12 +5,11 @@
 #include <cmath>
 #include <algorithm>
 
-#include "grid_state.h"
-#include "app_state.h"
-
-bool findSurfaceCell(float angleRad, int x, int &yOut, int &zOut)
+bool findSurfaceCell(Scene& scene, float angleRad, int x, int &yOut, int &zOut)
 {
-    float middle_y = numY / 2.0f;
+    int numY = scene.state.numY;
+    int numZ = scene.state.numZ;
+    float middle_y =  numY / 2.0f;
     float middle_z = numZ / 2.0f;
     float outerRadius = numY / 2.0f;
 
@@ -23,7 +22,7 @@ bool findSurfaceCell(float angleRad, int x, int &yOut, int &zOut)
         y = std::max(0, std::min(numY - 1, y));
         z = std::max(0, std::min(numZ - 1, z));
 
-        if (isMaterial[idx(x, y, z)] == 1)
+        if (scene.state.isMaterial[scene.idx(x, y, z)] == 1)
         {
             yOut = y;
             zOut = z;
@@ -33,27 +32,37 @@ bool findSurfaceCell(float angleRad, int x, int &yOut, int &zOut)
     return false; // shouldn't happen if x is a valid cylinder cross-section
 }
 
-float rotateAndApplyInlet(float dt)
-{
-    int x = InletPositionX;
+float rotateAndApplyInlet(Scene& scene, float simdt)
+{   
+    InletState& inlet = scene.inlet;
+
+    if (inlet.hasActiveCell)
+    {
+        scene.state.heatInlet[scene.idx(inlet.activeX, inlet.activeY, inlet.activeZ)] = 0;
+    }
+
+    inlet.positionAngle += inlet.rotationSpeed / (scene.state.cylinderRadiusOutside) * simdt;
+
+    int x = inlet.positionX;
     int y, z;
 
-    findSurfaceCell(InletPositionAngle, x, y, z);
-    heatInlet[idx(x, y, z)] = 0;
-
-    InletPositionAngle += rotationSpeedcms / (100.0f * cylinderRadiusOutside) * dt;
-
-    findSurfaceCell(InletPositionAngle, x, y, z);
-
-    if (rotationSpeedcms > 0.01)
+    if (!findSurfaceCell(scene, inlet.positionAngle, x, y, z))
     {
-        heatPerSecond = heatPerDistance / (rotationSpeedcms); // J/s
+        inlet.hasActiveCell = false;
+        return inlet.positionAngle;
     }
     
-    heatInlet[idx(x, y, z)] = heatPerSecond / (material.specificHeatCapacity * material.density * cellVolume);
-    isMaterial[idx(x, y, z)] = 1.0;
 
-    temperature[idx(x, y, z)] += dt * heatInlet[idx(x, y, z)];
 
-    return InletPositionAngle;
+    scene.state.heatInlet[scene.idx(x, y, z)] = inlet.heatPerSecond / (material.specificHeatCapacity * material.density * scene.state.cellVolume);
+    //isMaterial[idx(x, y, z)] = 1.0;
+
+    scene.state.temperature[scene.idx(x, y, z)] += simdt * scene.state.heatInlet[scene.idx(x, y, z)];
+
+    inlet.activeX = x;
+    inlet.activeY = y;
+    inlet.activeZ = z;
+    inlet.hasActiveCell = true;
+
+    return inlet.positionAngle;
 }

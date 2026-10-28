@@ -251,10 +251,10 @@ ifeq ($(PLATFORM),PLATFORM_WEB)
     # --memory-init-file 0       # to avoid an external memory initialization code file (.mem)
     # --preload-file resources   # specify a resources folder for data compilation
     #CFLAGS += -Os -s USE_GLFW=3 -s TOTAL_MEMORY=16777216 --preload-file resources -s ALLOW_MEMORY_GROWTH=1
-    CFLAGS += -Os -s USE_GLFW=3 -s INITIAL_MEMORY=67108864 --preload-file resources -s ALLOW_MEMORY_GROWTH=1 -sASYNCIFY
-    ifeq ($(BUILD_MODE), DEBUG)
-        CFLAGS += -s ASSERTIONS=1 --profiling
-    endif
+    CFLAGS += -Os -s USE_GLFW=3 -s TOTAL_MEMORY=16777216 --preload-file resources -s ALLOW_MEMORY_GROWTH=1 -DGRAPHICS_API_OPENGL_ES3 -g
+    #ifeq ($(BUILD_MODE), DEBUG)
+    CFLAGS += -s ASSERTIONS=1 --profiling
+    #endif
 
     # Define a custom shell .html and output extension
     CFLAGS += --shell-file $(RAYLIB_PATH)/src/shell.html
@@ -310,6 +310,10 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
         # Precedence: immediately local, installed version, raysan5 provided libs
         LDFLAGS = -L. -L$(RAYLIB_INSTALL_PATH) -L$(RAYLIB_RELEASE_PATH)
     endif
+endif
+
+ifeq ($(PLATFORM),PLATFORM_WEB)
+    LDFLAGS += -s USE_WEBGL2=1 -s FULL_ES3=1
 endif
 
 ifeq ($(PLATFORM),PLATFORM_RPI)

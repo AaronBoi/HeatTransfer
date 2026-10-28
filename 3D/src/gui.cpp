@@ -1,13 +1,15 @@
 #include "gui.h"
 
-using namespace std;
 
-#include "app_state.h"
+
+
 
 string configurationFilepath = "resources/configuration.txt";
 
-void LoadConfiguration()
+
+void LoadConfiguration(Scene& scene)
 {   
+    Config& config = scene.config;
     string line;
     string value;
     string name;
@@ -19,18 +21,22 @@ void LoadConfiguration()
         value = line.substr(line.find(delimiter) + delimiter.size());
         name = line.substr(0, line.find(delimiter));
 
-        if (name == "numY") guiState.numY = stoi(value);
-        if (name == "Pipe length") guiState.cylinderLength = stof(value);
-        if (name == "Pipe outer diameter") guiState.cylinderDiameterOutside = stof(value);
-        if (name == "Pipe wall thickness") guiState.wallThickness = stof(value);
-        if (name == "Heat Per Distance") guiState.heatPerDistancekJcm = stof(value);
-        if (name == "SensorPositionIndex") guiState.selectedSensor = stoi(value);
+        if (name == "numY") config.cylinder_numY = stoi(value);
+        if (name == "Pipe length") config.cylinderLength_mm = stof(value);
+        if (name == "Pipe outer diameter") config.cylinderDiameterOutside_mm = stof(value);
+        if (name == "Pipe wall thickness") config.wallThickness_mm = stof(value);
+        if (name == "Heat Per Distance") config.heatPerDistancekJcm = stof(value);
+        if (name == "SensorPositionIndex") config.selectedSensor = stoi(value);
     }
-    reset = true;
+    scene.gui.reset = true;
+    
+
+    
 }
 
-void SaveConfiguration()
+void SaveConfiguration(Scene& scene)
 {
+    Config& config = scene.config;
     vector<string> names = {
         "numY",
         "Pipe length",
@@ -41,12 +47,12 @@ void SaveConfiguration()
     };
     vector<string> values = 
     {
-        to_string(guiState.numY),
-        to_string(guiState.cylinderLength),
-        to_string(guiState.cylinderDiameterOutside),
-        to_string(guiState.wallThickness),
-        to_string(guiState.heatPerDistancekJcm),
-        to_string(guiState.selectedSensor),
+        to_string(config.cylinder_numY),
+        to_string(config.cylinderLength_mm),
+        to_string(config.cylinderDiameterOutside_mm),
+        to_string(config.wallThickness_mm),
+        to_string(config.heatPerDistancekJcm),
+        to_string(config.selectedSensor),
     };
 
     ofstream outFile(configurationFilepath);
@@ -55,7 +61,7 @@ void SaveConfiguration()
         outFile << names[i] << ": " << values[i] << "\n";
     }
     
-    reset = true;
+    scene.gui.reset = true;
 }
 
 void SaveSensorData(vector<float>timeArr, vector<float> temperatureArr)
@@ -69,70 +75,76 @@ void SaveSensorData(vector<float>timeArr, vector<float> temperatureArr)
 }
 
 
-void simulationWindow()
+void simulationWindow(Scene& scene)
 {
     ImGui::Begin("Simulation GUI");
 
     if (ImGui::Button("Start"))
-        running = true;
+        scene.gui.running = true;
     if (ImGui::Button("Stop"))
-        running = false;
+        scene.gui.running = false;
     if (ImGui::Button("Reset"))
-        reset = true;
+        scene.gui.reset = true;
 
     if (ImGui::Button("Kelvin/Celsius"))
-        showAsKelvin = !showAsKelvin;
+        scene.gui.showAsKelvin = !scene.gui.showAsKelvin;
 
     ImGui::SameLine();
-    if (showAsKelvin) {
+    if (scene.gui.showAsKelvin) {
         ImGui::Text("Kelvin");
     }
     else {
         ImGui::Text("Celsius");
     }
 
-    ImGui::InputInt("Stop Time", &stopTime);
+    ImGui::InputInt("Stop Time", &scene.gui.stopTime);
 
     ImGui::Text("Time passed: ");
     ImGui::SameLine();
-    ImGui::Text("%f", timePassed);
+    ImGui::Text("%f", scene.gui.timePassed);
     ImGui::SameLine();
     ImGui::Text(" seconds");
 
+    ImGui::Text("SpeedUp Factor");
+    ImGui::SliderFloat("SpeedUp", &scene.gui.speedUp, 0.1f, 3.0f);
+
+    
+
     ImGui::End();
     return;
+    
 }
 
-void configurationWindow()
+void configurationWindow(Scene& scene)
 {
     ImGui::Begin("Configuration Window");
 
-    ImGui::InputInt("numY", &guiState.numY);
-    ImGui::InputFloat("Pipe length in mm", &guiState.cylinderLength);
-    ImGui::InputFloat("Pipe outer diameter in mm", &guiState.cylinderDiameterOutside);
-    ImGui::InputFloat("Pipe wall thickness in mm", &guiState.wallThickness);
-    ImGui::InputFloat("Heat Per Distance in KJ/cm", &guiState.heatPerDistancekJcm);
-    ImGui::InputFloat("Rotation Speed in cm/s", &guiState.rotationSpeedcms);
+    ImGui::InputInt("numY", &scene.config.cylinder_numY);
+    ImGui::InputFloat("Pipe length in mm", &scene.config.cylinderLength_mm);
+    ImGui::InputFloat("Pipe outer diameter in mm", &scene.config.cylinderDiameterOutside_mm);
+    ImGui::InputFloat("Pipe wall thickness in mm", &scene.config.wallThickness_mm);
+    ImGui::InputFloat("Heat Per Distance in KJ/cm", &scene.config.heatPerDistancekJcm);
+    ImGui::InputFloat("Rotation Speed in cm/s", &scene.config.rotationSpeedcms);
 
-    if(ImGui::Button("Place Sensor")) selectMode = !selectMode;
+    if(ImGui::Button("Place Sensor")) scene.gui.selectMode = !scene.gui.selectMode;
 
-    if(ImGui::Button("Load Preview")) reset = true;
-    if(ImGui::Button("Save Configuration")) SaveConfiguration();
+    if(ImGui::Button("Load Preview")) scene.gui.reset = true;
+    if(ImGui::Button("Save Configuration")) SaveConfiguration(scene);
     //ImGui::SameLine();
-    if(ImGui::Button("Load Configuration")) LoadConfiguration();
+    if(ImGui::Button("Load Configuration")) LoadConfiguration(scene);
 
     ImGui::End();
 
     return;
 }
 
-void MakeImGui()
+void MakeImGui(Scene& scene)
 {
     rlImGuiBegin();
     
 
-    simulationWindow();
-    configurationWindow();
+    simulationWindow(scene);
+    configurationWindow(scene);
 
     //ImGui::ShowDemoWindow();
 

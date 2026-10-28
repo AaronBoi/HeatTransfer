@@ -1,4 +1,5 @@
 #pragma once
+#include "scene.h"
 
 #include <imgui.h>
 #include <rlImGui.h>
@@ -8,10 +9,12 @@
 #include <string>
 #include <iostream>
 
+
+
 using namespace std;
 
 // Renders the ImGui control panel (start/stop/reset, temperature color
 // scale, Kelvin/Celsius toggle, elapsed time, rotation speed).
-void MakeImGui();
+void MakeImGui(Scene& scene);
 
 void SaveSensorData(vector<float>timeArr, vector<float> temperature_arr);

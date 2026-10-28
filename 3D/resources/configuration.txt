@@ -1,4 +1,4 @@
-numY: 20
+numY: 30
 Pipe length: 50.000000
 Pipe outer diameter: 14.000000
 Pipe wall thickness: 2.000000
