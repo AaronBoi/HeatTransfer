@@ -1,8 +1,8 @@
 #include "thomas_algorithm.h"
 
-using namespace std;
 
-vector<float> ThomasAlgorithm(vector<float> a, vector<float> b, vector<float> c, vector<float> d)
+
+vector<float> ThomasAlgorithm(const vector<float>& a, const vector<float>& b, const vector<float>& c, const vector<float>& d)
 {
     int size = d.size();
 

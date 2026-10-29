@@ -16,6 +16,6 @@ using namespace std;
 // stable; solves one implicit tridiagonal system per axis per step via
 // ThomasAlgorithm. Domain edges and material/air interfaces are both
 // treated as insulated (zero-flux / Neumann) boundaries.
-void heatConductionCrankNicolson(Scene& scene, float dt, MaterialConstants material);
+void heatConductionCrankNicolson(Scene& scene, float dt, MaterialConstants material, float theta);
 
 void radiationLoss(Scene& scene, float simdt);

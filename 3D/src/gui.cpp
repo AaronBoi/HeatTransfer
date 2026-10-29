@@ -78,6 +78,7 @@ void SaveSensorData(vector<float>timeArr, vector<float> temperatureArr)
 void simulationWindow(Scene& scene)
 {
     ImGui::Begin("Simulation GUI");
+    ImGui::BeginDisabled(scene.gui.cameraActive);
 
     if (ImGui::Button("Start"))
         scene.gui.running = true;
@@ -108,8 +109,7 @@ void simulationWindow(Scene& scene)
     ImGui::Text("SpeedUp Factor");
     ImGui::SliderFloat("SpeedUp", &scene.gui.speedUp, 0.1f, 3.0f);
 
-    
-
+    ImGui::EndDisabled(); 
     ImGui::End();
     return;
     
@@ -118,6 +118,7 @@ void simulationWindow(Scene& scene)
 void configurationWindow(Scene& scene)
 {
     ImGui::Begin("Configuration Window");
+    ImGui::BeginDisabled(scene.gui.cameraActive);
 
     ImGui::InputInt("numY", &scene.config.cylinder_numY);
     ImGui::InputFloat("Pipe length in mm", &scene.config.cylinderLength_mm);
@@ -133,6 +134,7 @@ void configurationWindow(Scene& scene)
     //ImGui::SameLine();
     if(ImGui::Button("Load Configuration")) LoadConfiguration(scene);
 
+    ImGui::EndDisabled(); 
     ImGui::End();
 
     return;

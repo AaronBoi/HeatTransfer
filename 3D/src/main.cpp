@@ -86,9 +86,8 @@ void init()
 
     scene.setCylinderHollow();
 
-    // setPlane(); // swap in for a simpler flat-slab validation setup
-
-    scene.state.temperature[scene.idx(65, 1, 4)] = 1000;
+    // setPlane();
+    
 
     numCubes = getNumberCubes(scene);
     mesh = GenMeshIdenticalCubes(scene, scene.state.drawSize);
@@ -151,12 +150,22 @@ int SelectCubeTargeted(Camera3D camera, Mesh mesh)
 void loop()
 {
     if (scene.gui.reset) init();
+    
 
     if (IsKeyPressed(KEY_C))
-    {
+    {   
         scene.gui.cameraActive = !scene.gui.cameraActive;
-        if (scene.gui.cameraActive) DisableCursor();
-        else EnableCursor();
+        if (scene.gui.cameraActive) 
+        { 
+            DisableCursor();
+            ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
+
+        }
+        else 
+        {
+            EnableCursor();
+            ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+        }
     }
 
     
@@ -186,7 +195,7 @@ void loop()
         }
 
         rotateAndApplyInlet(scene, simdt);
-        heatConductionCrankNicolson(scene, simdt, material);
+        heatConductionCrankNicolson(scene, simdt, material, 0.5);
         radiationLoss(scene, simdt);
 
         scene.gui.timePassed += simdt;
@@ -207,9 +216,6 @@ void loop()
            
             DrawModelWires(model, {0, 0, 0}, 1, BLACK);
             DrawModel(model, {0, 0, 0}, 1, WHITE);
-            
-         
-            
     
         EndMode3D();
 
@@ -277,7 +283,7 @@ int main()
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };        // Camera up vector (rotation towards target)
     camera.fovy = 90.0f;                              // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;
-
+    
 
     DisableCursor();
     SetTargetFPS(60);
@@ -285,7 +291,6 @@ int main()
 
     rlImGuiSetup(true);
     init();
-
     
 
     #ifdef __EMSCRIPTEN__
